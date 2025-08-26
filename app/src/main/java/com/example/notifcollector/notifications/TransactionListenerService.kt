@@ -18,6 +18,8 @@ class TransactionListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
 
+        com.example.notifcollector.notifications.logRawNotification(sbn)
+
         val pkg = sbn.packageName ?: return
         val extras = sbn.notification.extras
 
