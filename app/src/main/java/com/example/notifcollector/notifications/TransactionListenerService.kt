@@ -27,14 +27,22 @@ class TransactionListenerService : NotificationListenerService() {
         val text  = (extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: "").trim()
         val big   = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: "").trim()
 
-        Timber.i("📬 pkg=%s | title=%s | text=%s | big=%s",
-            pkg, title, text, big)
-        val body = listOf(title, if (big.isNotEmpty()) big else text)
-            .filter { it.isNotEmpty() }
-            .joinToString(" | ")
+        // Parseo normalizado → JSON
+        val parsed = NotificationParser.parse(
+            packageName = pkg,
+            title = title,
+            text = text,
+            bigText = big,
+            occurredAt = sbn.postTime
+        )
 
-        Timber.i("📬 Notif pkg=%s | %s", pkg, body)
-
-        // TODO: más adelante llamamos a los parsers y persistimos/enviamos
+        if (parsed != null) {
+            Timber.i("EVENT_JSON %s", parsed.toJson())
+            // Más adelante: mapear a EventEntity y guardar/enviar
+            // val entity = ...
+            // repo.saveEventLocal(entity); enqueue UploadWorker...
+        } else {
+            Timber.i("Parser no reconoció formato para pkg=%s title=%s text=%s big=%s", pkg, title, text, big)
+        }
     }
 }
