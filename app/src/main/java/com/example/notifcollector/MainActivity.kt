@@ -22,10 +22,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.notifcollector.auth.AuthManager
 
 class MainActivity : ComponentActivity() {
+    
+    private lateinit var authManager: AuthManager
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        authManager = AuthManager(this)
+        
         setContent { App() }
     }
 
@@ -85,8 +92,15 @@ class MainActivity : ComponentActivity() {
                     }) { Text("Habilitar acceso a notificaciones (listener)") }
 
                     Spacer(Modifier.height(24.dp))
-
-
+                    
+                    // Navigate to assignment screen
+                    Button(onClick = {
+                        ctx.startActivity(Intent(ctx, AssignmentActivity::class.java))
+                    }) {
+                        Text("Wallet Assignment")
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
 
                     Button(onClick = { TestNotifs.sendExample(ctx) }) {
                         Text("Notificación de prueba")
