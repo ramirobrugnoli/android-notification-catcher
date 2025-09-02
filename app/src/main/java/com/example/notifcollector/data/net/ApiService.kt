@@ -59,6 +59,23 @@ data class UserProfile(
     val picture: String?
 )
 
+@JsonClass(generateAdapter = true)
+data class WalletAssignmentResponse(
+    val id: String,
+    val userId: String,
+    val provider: String,
+    val deviceId: String,
+    val user: UserSummary,
+    val createdAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateAssignmentRequest(
+    val userId: String,
+    val provider: String,
+    val deviceId: String
+)
+
 interface ApiService {
     @POST("/auth/login")
     suspend fun login(@Body loginRequest: LoginRequest): LoginResponse
@@ -69,8 +86,14 @@ interface ApiService {
     @POST("/assignments")
     suspend fun createAssignment(
         @Header("Authorization") bearer: String,
-        @Body body: Map<String, String> // { userId, provider }
-    )
+        @Body body: CreateAssignmentRequest
+    ): WalletAssignmentResponse
+
+    @GET("/assignments/device/{deviceId}")
+    suspend fun getDeviceAssignments(
+        @Header("Authorization") bearer: String,
+        @Path("deviceId") deviceId: String
+    ): List<WalletAssignmentResponse>
 
     @DELETE("/assignments/{userId}/{provider}")
     suspend fun deleteAssignment(

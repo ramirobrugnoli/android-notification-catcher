@@ -50,6 +50,7 @@ class AssignmentActivity : ComponentActivity() {
     @Composable
     private fun AssignmentScreen() {
         var users by remember { mutableStateOf<List<UserSummary>>(emptyList()) }
+        var assignments by remember { mutableStateOf<List<com.example.notifcollector.data.net.WalletAssignmentResponse>>(emptyList()) }
         var isLoading by remember { mutableStateOf(true) }
         var selectedUserId by remember { mutableStateOf<String?>(null) }
         var selectedProvider by remember { mutableStateOf<String?>(null) }
@@ -57,6 +58,9 @@ class AssignmentActivity : ComponentActivity() {
         LaunchedEffect(Unit) {
             loadUsers { userList ->
                 users = userList
+            }
+            loadDeviceAssignments { assignmentList ->
+                assignments = assignmentList
                 isLoading = false
             }
         }
@@ -158,14 +162,23 @@ class AssignmentActivity : ComponentActivity() {
                                     user = user,
                                     isSelected = selectedUserId == user.id,
                                     selectedProvider = selectedProvider,
+                                    assignments = assignments.filter { it.userId == user.id },
                                     onSelect = { selectedUserId = user.id },
                                     onAssign = { 
                                         if (selectedProvider != null) {
-                                            assignWallet(user.id, selectedProvider!!)
+                                            assignWallet(user.id, selectedProvider!!) {
+                                                loadDeviceAssignments { assignmentList ->
+                                                    assignments = assignmentList
+                                                }
+                                            }
                                         }
                                     },
                                     onRemove = { provider ->
-                                        removeAssignment(user.id, provider)
+                                        removeAssignment(user.id, provider) {
+                                            loadDeviceAssignments { assignmentList ->
+                                                assignments = assignmentList
+                                            }
+                                        }
                                     }
                                 )
                             }
@@ -181,6 +194,7 @@ class AssignmentActivity : ComponentActivity() {
         user: UserSummary,
         isSelected: Boolean,
         selectedProvider: String?,
+        assignments: List<com.example.notifcollector.data.net.WalletAssignmentResponse>,
         onSelect: () -> Unit,
         onAssign: () -> Unit,
         onRemove: (String) -> Unit
@@ -229,14 +243,42 @@ class AssignmentActivity : ComponentActivity() {
                     }
                 }
                 
-                // Show existing assignments (this would need to be fetched from backend)
-                // For now, just showing placeholder
+                // Show existing assignments for this device
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Current assignments: None", // TODO: Fetch from backend
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                if (assignments.isNotEmpty()) {
+                    Text(
+                        "Current assignments:",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    assignments.forEach { assignment ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                assignment.provider.uppercase(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            TextButton(
+                                onClick = { onRemove(assignment.provider) }
+                            ) {
+                                Text("Remove", color = Color.Red)
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        "Current assignments: None",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
             }
         }
     }
@@ -245,11 +287,13 @@ class AssignmentActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 val bearerToken = authManager.getBearerToken()
+                Timber.d("Bearer token: $bearerToken")
                 if (bearerToken != null) {
                     val response = apiService.listUsers(bearerToken)
                     onResult(response.users)
                 } else {
                     Timber.e("No bearer token available")
+                    Timber.d("Access token: ${authManager.getAccessToken()}")
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load users")
@@ -258,22 +302,36 @@ class AssignmentActivity : ComponentActivity() {
         }
     }
     
-    private fun assignWallet(userId: String, provider: String) {
+    private fun loadDeviceAssignments(onResult: (List<com.example.notifcollector.data.net.WalletAssignmentResponse>) -> Unit) {
+        lifecycleScope.launch {
+            try {
+                val assignments = walletAssignmentManager.getDeviceAssignments()
+                onResult(assignments)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load device assignments")
+                onResult(emptyList())
+            }
+        }
+    }
+    
+    private fun assignWallet(userId: String, provider: String, onComplete: () -> Unit) {
         lifecycleScope.launch {
             try {
                 walletAssignmentManager.assignWallet(userId, provider)
                 Timber.i("Assigned $provider wallet to user $userId")
+                onComplete()
             } catch (e: Exception) {
                 Timber.e(e, "Failed to assign wallet")
             }
         }
     }
     
-    private fun removeAssignment(userId: String, provider: String) {
+    private fun removeAssignment(userId: String, provider: String, onComplete: () -> Unit) {
         lifecycleScope.launch {
             try {
                 walletAssignmentManager.removeAssignment(userId, provider)
                 Timber.i("Removed $provider wallet from user $userId")
+                onComplete()
             } catch (e: Exception) {
                 Timber.e(e, "Failed to remove assignment")
             }

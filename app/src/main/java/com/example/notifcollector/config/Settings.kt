@@ -5,7 +5,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
 object Settings {
-    const val BASE_URL = "http://192.168.0.213:3000"
+    const val BASE_URL = "https://wallet-manager-production-c194.up.railway.app"
     
     private const val PREFS = "ingest_prefs"
     private const val KEY_BASE_URL = "base_url"
